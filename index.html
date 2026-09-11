@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>미디어 변환기</title>
+<style>
+  :root {
+    --bg: #f7f7f9;
+    --card: #ffffff;
+    --border: #e3e3e8;
+    --text: #1c1c1f;
+    --sub: #6b6b74;
+    --accent: #4f46e5;
+    --accent-hover: #4338ca;
+    --success: #16a34a;
+    --danger: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 32px 16px 80px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .desc { color: var(--sub); font-size: 14px; margin-bottom: 24px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab-btn {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--sub);
+  }
+  .tab-btn.active.img { background: #eef4ff; color: #3346c9; border-color: #d3e2ff; }
+  .tab-btn.active.vid { background: #f4eeff; color: #6b2fd6; border-color: #e1d3ff; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .drop {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 28px 16px;
+    text-align: center;
+    color: var(--sub);
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .drop.drag { border-color: var(--accent); background: #eef2ff; color: var(--accent); }
+  .drop input { display: none; }
+  .opt-card {
+    border-radius: 12px;
+    padding: 16px 18px 18px;
+    margin-top: 18px;
+    border: 1px solid transparent;
+  }
+  .opt-card.img { background: #eef4ff; border-color: #d3e2ff; }
+  .opt-card.vid { background: #f4eeff; border-color: #e1d3ff; }
+  .opt-head {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 14px; font-weight: 800; color: var(--text);
+  }
+  .opt-head .badge { font-size: 20px; line-height: 1; }
+  .controls { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 12px; }
+  .control { flex: 1; min-width: 160px; }
+  .control label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .control .val { color: var(--accent); font-weight: 700; }
+  select, input[type=number] {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: 14px;
+    background: #fff;
+  }
+  input[type=range] { width: 100%; }
+  .target-size-row { display: flex; gap: 6px; }
+  .target-size-row input { flex: 1; min-width: 0; }
+  .target-size-row select { width: 72px; flex-shrink: 0; }
+  .hint { font-size: 12px; color: var(--sub); margin-top: 4px; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 11px 20px;
+    border-radius: 9px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn:hover { background: var(--accent-hover); }
+  .btn:disabled { background: #c7c7cf; cursor: not-allowed; }
+  .btn.ghost {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 7px 14px;
+    font-size: 13px;
+  }
+  .actions { display: flex; gap: 10px; margin-top: 18px; align-items: center; flex-wrap: wrap; }
+  .status { font-size: 13px; color: var(--sub); }
+  .list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: var(--card);
+  }
+  .item img, .item .thumb {
+    width: 52px; height: 52px; object-fit: cover; border-radius: 6px; background: #f0f0f3; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+  }
+  .item .meta { flex: 1; min-width: 0; }
+  .item .name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .target-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .target-badge.img { background: #dbe6ff; color: #3346c9; }
+  .target-badge.vid { background: #e7dbff; color: #6b2fd6; }
+  .target-badge.cmyk { background: #fef3c7; color: #92400e; }
+  .item .name-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .item .name-row .name { flex: 0 1 auto; max-width: 65%; min-width: 0; }
+  .item .size { font-size: 12px; color: var(--sub); }
+  .item .size b { color: var(--success); }
+  .item .size .out.estimate { color: var(--accent); font-style: italic; }
+  .item .bar-wrap { width: 100%; height: 4px; background: #eee; border-radius: 4px; margin-top: 6px; overflow: hidden; }
+  .item .bar { height: 100%; background: var(--accent); width: 0%; transition: 0.2s; }
+  .item.error .size { color: var(--danger); }
+  a.dl {
+    font-size: 12px; font-weight: 700; text-decoration: none;
+    background: var(--accent); color: #fff; border: 1px solid var(--accent);
+    padding: 7px 12px; border-radius: 7px; white-space: nowrap; flex-shrink: 0;
+  }
+  a.dl.disabled { pointer-events: none; background: transparent; color: var(--sub); border-color: var(--border); }
+  .remove-btn {
+    flex-shrink: 0;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--sub);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+  }
+  .remove-btn:hover { background: #fee2e2; color: var(--danger); border-color: #fecaca; }
+  footer { text-align: center; color: var(--sub); font-size: 12px; margin-top: 30px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>미디어 변환기</h1>
+  <div class="desc">모든 처리는 브라우저 안에서만 일어나고 서버로 업로드되지 않습니다.</div>
+
+  <div class="tabs">
+    <button class="tab-btn img active" data-tab="image">🖼️ 이미지 변환</button>
+    <button class="tab-btn vid" data-tab="video">🎬 동영상 변환</button>
+  </div>
+
+  <!-- 이미지 패널 -->
+  <div class="panel active" id="panel-image">
+    <div class="card">
+      <div class="drop" id="drop-image">
+        <div>HEIC/HEIF, WEBP, PNG, JPG, BMP, GIF, AVIF, SVG 파일을 끌어다 놓거나 클릭해서 선택하세요</div>
+        <div class="hint">여러 개 동시 선택 가능</div>
+        <input type="file" id="input-image" accept=".heic,.heif,.webp,.png,.jpg,.jpeg,.bmp,.gif,.avif,.svg,image/*" multiple>
+      </div>
+
+      <div class="opt-card img">
+        <div class="opt-head"><span class="badge">🖼️</span>이미지 옵션</div>
+        <div class="controls">
+          <div class="control">
+            <label>출력 형식</label>
+            <select id="img-format">
+              <option value="jpeg">JPG</option>
+              <option value="png">PNG</option>
+              <option value="webp">WEBP</option>
+              <option value="bmp">BMP</option>
+              <option value="tga">TGA</option>
+              <option value="tiff">TIFF</option>
+              <option value="gif">GIF</option>
+              <option value="ico">ICO</option>
+              <option value="svg">SVG (이미지 포함)</option>
+            </select>
+            <div class="hint" id="img-format-hint"></div>
+          </div>
+          <div class="control" id="img-quality-control">
+            <label>화질 <span class="val" id="img-quality-val">80%</span></label>
+            <input type="range" id="img-quality" min="10" max="100" value="80">
+            <div class="hint" id="img-quality-hint">낮을수록 용량이 작아집니다</div>
+          </div>
+          <div class="control">
+            <label>최대 가로폭 (px, 선택)</label>
+            <input type="number" id="img-maxwidth" placeholder="원본 크기 유지">
+            <div class="hint">값을 넣으면 리사이즈해서 용량을 더 줄입니다</div>
+          </div>
+          <div class="control">
+            <label>목표 용량 (선택)</label>
+            <div class="target-size-row">
+              <input type="number" id="img-target-size" placeholder="예: 500">
+              <select id="img-target-unit">
+                <option value="KB">KB</option>
+                <option value="MB">MB</option>
+              </select>
+            </div>
+            <div class="hint" id="img-target-hint">입력하면 화질/가로폭을 자동으로 맞춰줍니다 (예: 배너 500KB, 사진 2MB, 프로필 100KB)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="btn-convert-image">변환하기</button>
+        <button class="btn ghost" id="btn-zip-image" disabled>전체 다운로드 (ZIP)</button>
+        <span class="status" id="status-image"></span>
+      </div>
+    </div>
+    <div class="list" id="list-image"></div>
+  </div>
+
+  <!-- 동영상 패널 -->
+  <div class="panel" id="panel-video">
+    <div class="card">
+      <div class="drop" id="drop-video">
+        <div>MP4, MOV 파일을 끌어다 놓거나 클릭해서 선택하세요</div>
+        <div class="hint">여러 개 동시 선택 가능 · 첫 실행 시 변환 엔진(~20MB)을 내려받습니다</div>
+        <input type="file" id="input-video" accept=".mp4,.mov,video/mp4,video/quicktime" multiple>
+      </div>
+
+      <div class="opt-card vid">
+        <div class="opt-head"><span class="badge">🎬</span>동영상 옵션</div>
+        <div class="controls">
+          <div class="control">
+            <label>출력 형식</label>
+            <select id="vid-format">
+              <option value="mp4">MP4 (용량 압축)</option>
+              <option value="gif">GIF</option>
+            </select>
+          </div>
+          <div class="control">
+            <label>프레임레이트 <span class="val" id="vid-fps-val">원본 유지</span></label>
+            <input type="range" id="vid-fps" min="0" max="30" value="0">
+            <div class="hint">0 = 원본 프레임레이트 유지, 낮출수록 용량이 작아집니다</div>
+          </div>
+          <div class="control">
+            <label>가로폭</label>
+            <select id="vid-width">
+              <option value="original">원본 유지</option>
+              <option value="1280">1280px</option>
+              <option value="720" selected>720px</option>
+              <option value="480">480px</option>
+              <option value="360">360px</option>
+              <option value="240">240px</option>
+              <option value="160">160px</option>
+            </select>
+            <div class="hint">작을수록 용량이 크게 줄어듭니다</div>
+          </div>
+          <div class="control" id="vid-quality-wrap">
+            <label>화질 (MP4) <span class="val" id="vid-quality-val">70%</span></label>
+            <input type="range" id="vid-quality" min="0" max="100" value="70">
+            <div class="hint">낮을수록 용량이 작아집니다</div>
+          </div>
+          <div class="control" id="vid-colors-wrap" style="display:none;">
+            <label>색상 수 (GIF) <span class="val" id="vid-colors-val">128</span></label>
+            <input type="range" id="vid-colors" min="16" max="256" step="8" value="128">
+            <div class="hint">낮을수록 용량이 작아지지만 색이 거칠어집니다</div>
+          </div>
+          <div class="control">
+            <label>목표 용량 (선택)</label>
+            <div class="target-size-row">
+              <input type="number" id="vid-target-size" placeholder="예: 5">
+              <select id="vid-target-unit">
+                <option value="KB">KB</option>
+                <option value="MB" selected>MB</option>
+              </select>
+            </div>
+            <div class="hint" id="vid-target-hint">MP4는 길이 기준 비트레이트로 정확히, GIF는 근사치로 맞춰집니다</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="btn-convert-video">변환하기</button>
+        <button class="btn ghost" id="btn-zip-video" disabled>전체 다운로드 (ZIP)</button>
+        <span class="status" id="status-video"></span>
+      </div>
+    </div>
+    <div class="list" id="list-video"></div>
+  </div>
+
+  <footer>모든 변환은 로컬 브라우저에서만 실행됩니다.</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+<script type="module">
+import { FFmpeg } from "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js";
+import { fetchFile, toBlobURL } from "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js";
+import { GIFEncoder, quantize, applyPalette } from "https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js";
+import { decode as decodeJpeg } from "https://cdn.jsdelivr.net/npm/jpeg-js@0.4.4/+esm";
+
+/* ---------- 공통 유틸 ---------- */
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / 1024 / 1024).toFixed(2) + " MB";
+}
+function baseName(name) {
+  return name.replace(/\.[^/.]+$/, "");
+}
+const HEIC_RE = /\.(heic|heif)$/i;
+function isHeicFile(f) {
+  return HEIC_RE.test(f.name) || /heic|heif/i.test(f.type);
+}
+function isImageFile(f) {
+  return isHeicFile(f) || /\.(webp|png|jpe?g|bmp|gif|avif|svg)$/i.test(f.name) || /^image\//i.test(f.type);
+}
+function isVideoFile(f) {
+  return /\.(mp4|mov)$/i.test(f.name) || /video\/(mp4|quicktime)/i.test(f.type);
+}
+
+function setupTabs() {
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
+    });
+  });
+}
+function setupDrop(dropId, inputId, onFiles) {
+  const drop = document.getElementById(dropId);
+  const input = document.getElementById(inputId);
+  drop.addEventListener("click", () => input.click());
+  input.addEventListener("change", () => onFiles([...input.files]));
+  ["dragenter", "dragover"].forEach(ev =>
+    drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("drag"); })
+  );
+  ["dragleave", "drop"].forEach(ev =>
+    drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("drag"); })
+  );
+  drop.addEventListener("drop", e => onFiles([...e.dataTransfer.files]));
+}
+function renderItem(listEl, file, icon, kind, targetLabel, cmykBadge, dims) {
+  const row = document.createElement("div");
+  row.className = "item";
+  // HEIC/HEIF는 브라우저가 직접 미리보기를 못 그리므로 아이콘을, 그 외 이미지는 실제 썸네일을 보여준다
+  const previewable = /^image\//i.test(file.type) && !isHeicFile(file);
+  const thumbInner = previewable
+    ? `<img src="${URL.createObjectURL(file)}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">`
+    : icon;
+  const dimsText = dims ? ` · ${dims.width}×${dims.height}px` : "";
+  row.innerHTML = `
+    <div class="thumb">${thumbInner}</div>
+    <div class="meta">
+      <div class="name-row">
+        <div class="name">${file.name}</div>
+        <span class="target-badge ${kind}">→ ${targetLabel}</span>
+        ${cmykBadge ? `<span class="target-badge cmyk">CMYK→RGB 보정</span>` : ""}
+      </div>
+      <div class="size">원본 ${fmtSize(file.size)}${dimsText} → <span class="out">대기 중</span></div>
+      <div class="bar-wrap"><div class="bar"></div></div>
+    </div>
+    <a class="dl disabled" href="#">다운로드</a>
+    <button type="button" class="remove-btn" title="목록에서 삭제">×</button>
+  `;
+  listEl.appendChild(row);
+  return {
+    row,
+    thumb: row.querySelector(".thumb"),
+    target: row.querySelector(".target-badge"),
+    out: row.querySelector(".out"),
+    bar: row.querySelector(".bar"),
+    dl: row.querySelector(".dl"),
+    remove: row.querySelector(".remove-btn"),
+  };
+}
+function setProgress(refs, pct) { refs.bar.style.width = pct + "%"; }
+function setDone(refs, blob, filename, originalSize) {
+  const url = URL.createObjectURL(blob);
+  refs.out.classList.remove("estimate");
+  refs.out.innerHTML = `<b>${fmtSize(blob.size)}</b> (${Math.round((blob.size / originalSize) * 100)}%)`;
+  refs.dl.href = url;
+  refs.dl.download = filename;
+  refs.dl.classList.remove("disabled");
+  refs.bar.style.width = "100%";
+  return { url, filename, blob };
+}
+function setError(refs, msg) {
+  refs.row.classList.add("error");
+  refs.out.textContent = msg;
+}
+async function downloadZip(results, zipName, statusEl) {
+  if (!results.length) return;
+  statusEl.textContent = "ZIP 압축 중...";
+  const zip = new JSZip();
+  results.forEach(r => zip.file(r.filename, r.blob));
+  const blob = await zip.generateAsync({ type: "blob" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = zipName;
+  a.click();
+  statusEl.textContent = "";
+}
+
+setupTabs();
+
+/* ---------- 이미지 변환 (HEIC/HEIF/WEBP/PNG/JPG/BMP/TGA/TIFF/GIF/ICO/SVG) ---------- */
+const IMG_FORMATS = {
+  jpeg: { ext: "jpg", label: "JPG", lossy: true, hint: "낮을수록 용량이 작아집니다" },
+  png: { ext: "png", label: "PNG", lossy: false, hint: "PNG는 무손실이라 화질 설정이 적용되지 않습니다" },
+  webp: { ext: "webp", label: "WEBP", lossy: true, hint: "낮을수록 용량이 작아집니다" },
+  bmp: { ext: "bmp", label: "BMP", lossy: false, hint: "BMP는 무손실·무압축이라 화질 설정이 적용되지 않습니다" },
+  tga: { ext: "tga", label: "TGA", lossy: false, hint: "TGA는 무손실·무압축이라 화질 설정이 적용되지 않습니다" },
+  tiff: { ext: "tiff", label: "TIFF", lossy: false, hint: "TIFF는 무손실이라 화질 설정이 적용되지 않습니다" },
+  gif: { ext: "gif", label: "GIF", lossy: false, hint: "GIF는 색상 256개로 제한되는 정지 이미지입니다" },
+  ico: { ext: "ico", label: "ICO", lossy: false, hint: "아이콘 규격상 최대 256×256으로 자동 축소됩니다" },
+  svg: { ext: "svg", label: "SVG", lossy: false, hint: "실제 벡터 변환이 아니라, 원본 이미지를 SVG 컨테이너에 넣는 방식입니다" },
+};
+const imgFormat = document.getElementById("img-format");
+const imgQuality = document.getElementById("img-quality");
+const imgQualityControl = document.getElementById("img-quality-control");
+const imgMaxWidth = document.getElementById("img-maxwidth");
+document.getElementById("img-quality-val").textContent = imgQuality.value + "%";
+imgQuality.addEventListener("input", () => {
+  document.getElementById("img-quality-val").textContent = imgQuality.value + "%";
+  scheduleImagePreview();
+});
+imgMaxWidth.addEventListener("input", scheduleImagePreview);
+
+function updateImgFormatUI() {
+  const info = IMG_FORMATS[imgFormat.value];
+  document.getElementById("img-format-hint").textContent = info.hint;
+  imgQualityControl.style.opacity = info.lossy ? "1" : "0.45";
+  imgQuality.disabled = !info.lossy;
+}
+updateImgFormatUI();
+
+// 화질/가로폭/형식을 바꿀 때마다 실시간으로 예상 출력 용량을 보여준다.
+// 디코딩(HEIC/CMYK 보정)은 getSourceCanvas에서 파일당 한 번만 캐싱되므로
+// 슬라이더를 계속 움직여도 리사이즈+인코딩만 다시 하면 돼서 빠르다.
+let previewDebounceTimer = null;
+function scheduleImagePreview() {
+  clearTimeout(previewDebounceTimer);
+  previewDebounceTimer = setTimeout(runImagePreview, 250);
+}
+async function runImagePreview() {
+  const format = imgFormat.value;
+  const quality = Number(imgQuality.value) / 100;
+  const maxWidth = Number(imgMaxWidth.value) || null;
+  for (const item of imgItems) {
+    if (item.done) continue; // 이미 변환 완료된 파일은 실제 결과를 그대로 둔다
+    const token = (item._previewToken = (item._previewToken || 0) + 1);
+    item.refs.out.textContent = "예상 용량 계산 중...";
+    item.refs.out.classList.add("estimate");
+    try {
+      const sourceCanvas = await getSourceCanvas(item, msg => {
+        if (item._previewToken === token) item.refs.out.textContent = msg;
+      });
+      if (item._previewToken !== token) continue; // 그 사이 설정이 또 바뀌어 이 결과는 버림
+      const { blob } = await encodeFromSourceCanvas(sourceCanvas, format, quality, maxWidth);
+      if (item._previewToken !== token) continue;
+      const pct = Math.round((blob.size / item.file.size) * 100);
+      item.refs.out.innerHTML = `예상 <b>${fmtSize(blob.size)}</b> (${pct}%)`;
+    } catch (err) {
+      if (item._previewToken === token) item.refs.out.textContent = "예상 용량 계산 실패";
+    }
+  }
+}
+
+// 목표 용량을 입력하면 (가장 큰 파일 기준으로) 화질/가로폭을 자동으로 역산해서
+// 실제 화질·가로폭 입력값에 반영한다 — 이후엔 기존 미리보기/변환이 그 값을 그대로 쓴다.
+const imgTargetSize = document.getElementById("img-target-size");
+const imgTargetUnit = document.getElementById("img-target-unit");
+imgTargetSize.addEventListener("change", applyTargetSize);
+imgTargetUnit.addEventListener("change", applyTargetSize);
+async function applyTargetSize() {
+  const amount = Number(imgTargetSize.value);
+  if (!amount || amount <= 0) return;
+  const pending = imgItems.filter(it => !it.done);
+  if (!pending.length) { statusImage.textContent = "목표 용량을 적용할 파일이 없습니다"; return; }
+
+  const unit = imgTargetUnit.value;
+  const targetBytes = amount * (unit === "MB" ? 1024 * 1024 : 1024);
+  let worst = pending[0];
+  for (const it of pending) if (it.file.size > worst.file.size) worst = it;
+
+  const format = imgFormat.value;
+  const lossy = IMG_FORMATS[format].lossy;
+  const prevStatus = statusImage.textContent;
+  statusImage.textContent = `가장 큰 파일(${worst.file.name}) 기준으로 목표 용량에 맞추는 중...`;
+  worst.refs.out.textContent = "목표 용량 계산 중...";
+  worst.refs.out.classList.add("estimate");
+
+  try {
+    const sourceCanvas = await getSourceCanvas(worst, msg => (worst.refs.out.textContent = msg));
+    const naturalWidth = sourceCanvas.width;
+    const widthCeil = format === "ico" ? Math.min(naturalWidth, 256) : (Number(imgMaxWidth.value) || naturalWidth);
+
+    let foundQuality = 1;
+    let foundWidth = widthCeil;
+    let bestBlob = null;
+
+    if (lossy) {
+      let lo = 0.05, hi = 1.0;
+      for (let i = 0; i < 8; i++) {
+        const mid = (lo + hi) / 2;
+        const { blob } = await encodeFromSourceCanvas(sourceCanvas, format, mid, widthCeil);
+        if (blob.size > targetBytes) { hi = mid; } else { lo = mid; foundQuality = mid; bestBlob = blob; }
+      }
+      if (!bestBlob) {
+        foundQuality = 0.05;
+        bestBlob = (await encodeFromSourceCanvas(sourceCanvas, format, foundQuality, widthCeil)).blob;
+      }
+    }
+
+    if (!bestBlob || bestBlob.size > targetBytes) {
+      // 화질을 최저로 낮춰도(또는 화질 조절이 없는 포맷이어도) 목표보다 크면 가로폭을 같이 줄인다
+      const q = lossy ? 0.05 : 1;
+      let lo = 32, hi = widthCeil;
+      let widthResult = null;
+      for (let i = 0; i < 12; i++) {
+        const mid = Math.round((lo + hi) / 2);
+        const { blob } = await encodeFromSourceCanvas(sourceCanvas, format, q, mid);
+        if (blob.size > targetBytes) { hi = mid - 1; } else { lo = mid; widthResult = { width: mid, blob }; }
+      }
+      if (widthResult) {
+        foundWidth = widthResult.width;
+        bestBlob = widthResult.blob;
+        if (lossy) foundQuality = q;
+      }
+    }
+
+    if (lossy) {
+      imgQuality.value = Math.max(10, Math.round(foundQuality * 100));
+      document.getElementById("img-quality-val").textContent = imgQuality.value + "%";
+    }
+    if (foundWidth < naturalWidth) imgMaxWidth.value = foundWidth;
+
+    statusImage.textContent = bestBlob
+      ? `목표 ${amount}${unit}에 맞춰 설정을 조정했습니다 (가장 큰 파일 예상 ${fmtSize(bestBlob.size)})`
+      : prevStatus;
+  } catch (err) {
+    statusImage.textContent = "목표 용량 계산 실패: " + err.message;
+  }
+
+  scheduleImagePreview();
+}
+
+function loadImageBlob(blob) {
+  return new Promise((res, rej) => {
+    const el = new Image();
+    el.onload = () => res(el);
+    el.onerror = () => rej(new Error("이미지를 열 수 없습니다"));
+    el.src = URL.createObjectURL(blob);
+  });
+}
+
+/* 브라우저가 직접 인코딩 못 하는 포맷은 픽셀 데이터를 직접 읽어 파일 바이트를 만든다 */
+function encodeBMP(canvas) {
+  const w = canvas.width, h = canvas.height;
+  const data = canvas.getContext("2d").getImageData(0, 0, w, h).data;
+  const rowSize = Math.floor((24 * w + 31) / 32) * 4;
+  const pixelArraySize = rowSize * h;
+  const fileSize = 54 + pixelArraySize;
+  const buf = new ArrayBuffer(fileSize);
+  const view = new DataView(buf);
+  view.setUint8(0, 0x42); view.setUint8(1, 0x4d);
+  view.setUint32(2, fileSize, true);
+  view.setUint32(10, 54, true);
+  view.setUint32(14, 40, true);
+  view.setInt32(18, w, true);
+  view.setInt32(22, h, true);
+  view.setUint16(26, 1, true);
+  view.setUint16(28, 24, true);
+  view.setUint32(34, pixelArraySize, true);
+  view.setInt32(38, 2835, true);
+  view.setInt32(42, 2835, true);
+  let offset = 54;
+  for (let y = h - 1; y >= 0; y--) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      view.setUint8(offset++, data[i + 2]);
+      view.setUint8(offset++, data[i + 1]);
+      view.setUint8(offset++, data[i]);
+    }
+    offset += rowSize - w * 3;
+  }
+  return new Blob([buf], { type: "image/bmp" });
+}
+function encodeTGA(canvas) {
+  const w = canvas.width, h = canvas.height;
+  const data = canvas.getContext("2d").getImageData(0, 0, w, h).data;
+  const header = new Uint8Array(18);
+  header[2] = 2;
+  header[12] = w & 0xff; header[13] = (w >> 8) & 0xff;
+  header[14] = h & 0xff; header[15] = (h >> 8) & 0xff;
+  header[16] = 24;
+  header[17] = 0x20; // top-left origin
+  const pixels = new Uint8Array(w * h * 3);
+  let p = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    pixels[p++] = data[i + 2];
+    pixels[p++] = data[i + 1];
+    pixels[p++] = data[i];
+  }
+  return new Blob([header, pixels], { type: "image/x-tga" });
+}
+function encodeTIFF(canvas) {
+  const w = canvas.width, h = canvas.height;
+  const data = canvas.getContext("2d").getImageData(0, 0, w, h).data;
+  const bitsPerSampleOffset = 146, xResOffset = 152, yResOffset = 160, pixelOffset = 168;
+  const pixelBytes = w * h * 3;
+  const buf = new ArrayBuffer(pixelOffset + pixelBytes);
+  const view = new DataView(buf);
+  view.setUint8(0, 0x49); view.setUint8(1, 0x49);
+  view.setUint16(2, 42, true);
+  view.setUint32(4, 8, true);
+  let off = 8;
+  view.setUint16(off, 11, true); off += 2;
+  const writeTag = (tag, type, count, value) => {
+    view.setUint16(off, tag, true);
+    view.setUint16(off + 2, type, true);
+    view.setUint32(off + 4, count, true);
+    view.setUint32(off + 8, value, true);
+    off += 12;
+  };
+  writeTag(256, 3, 1, w);
+  writeTag(257, 3, 1, h);
+  writeTag(258, 3, 3, bitsPerSampleOffset);
+  writeTag(259, 3, 1, 1);
+  writeTag(262, 3, 1, 2);
+  writeTag(273, 4, 1, pixelOffset);
+  writeTag(277, 3, 1, 3);
+  writeTag(278, 4, 1, h);
+  writeTag(279, 4, 1, pixelBytes);
+  writeTag(282, 5, 1, xResOffset);
+  writeTag(283, 5, 1, yResOffset);
+  view.setUint32(off, 0, true); off += 4;
+  view.setUint16(bitsPerSampleOffset, 8, true);
+  view.setUint16(bitsPerSampleOffset + 2, 8, true);
+  view.setUint16(bitsPerSampleOffset + 4, 8, true);
+  view.setUint32(xResOffset, 72, true); view.setUint32(xResOffset + 4, 1, true);
+  view.setUint32(yResOffset, 72, true); view.setUint32(yResOffset + 4, 1, true);
+  let p = pixelOffset;
+  for (let i = 0; i < data.length; i += 4) {
+    view.setUint8(p++, data[i]);
+    view.setUint8(p++, data[i + 1]);
+    view.setUint8(p++, data[i + 2]);
+  }
+  return new Blob([buf], { type: "image/tiff" });
+}
+async function encodeICO(canvas) {
+  const w = canvas.width, h = canvas.height;
+  const pngBlob = await new Promise(res => canvas.toBlob(res, "image/png"));
+  const pngBuf = new Uint8Array(await pngBlob.arrayBuffer());
+  const header = new Uint8Array(6);
+  new DataView(header.buffer).setUint16(2, 1, true);
+  new DataView(header.buffer).setUint16(4, 1, true);
+  const entry = new Uint8Array(16);
+  const ev = new DataView(entry.buffer);
+  entry[0] = w >= 256 ? 0 : w;
+  entry[1] = h >= 256 ? 0 : h;
+  ev.setUint16(4, 1, true);
+  ev.setUint16(6, 32, true);
+  ev.setUint32(8, pngBuf.length, true);
+  ev.setUint32(12, 22, true);
+  return new Blob([header, entry, pngBuf], { type: "image/x-icon" });
+}
+function encodeGIF(canvas) {
+  const w = canvas.width, h = canvas.height;
+  const data = canvas.getContext("2d").getImageData(0, 0, w, h).data;
+  const palette = quantize(data, 256);
+  const index = applyPalette(data, palette);
+  const gif = GIFEncoder();
+  gif.writeFrame(index, w, h, { palette });
+  gif.finish();
+  return new Blob([gif.bytes()], { type: "image/gif" });
+}
+async function encodeSVG(canvas) {
+  const pngBlob = await new Promise(res => canvas.toBlob(res, "image/png"));
+  const dataUrl = await new Promise(res => {
+    const reader = new FileReader();
+    reader.onload = () => res(reader.result);
+    reader.readAsDataURL(pngBlob);
+  });
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}"><image width="${canvas.width}" height="${canvas.height}" href="${dataUrl}"/></svg>`;
+  return new Blob([svg], { type: "image/svg+xml" });
+}
+
+/* JPEG 세그먼트를 직접 훑어 SOF에서 가로/세로/컴포넌트 수를 한 번에 읽는다.
+   컴포넌트 수 4 = CMYK/YCCK. 브라우저 <img>는 이런 JPEG을 색이 깨지거나
+   아예 못 그리는 경우가 있어 이 경우엔 jpeg-js로 직접 디코딩해 RGB로 변환한다. */
+function parseJpegSOF(buf) {
+  const view = new DataView(buf);
+  if (view.getUint16(0) !== 0xffd8) return null;
+  let offset = 2;
+  while (offset < view.byteLength - 1) {
+    if (view.getUint8(offset) !== 0xff) { offset++; continue; }
+    const marker = view.getUint8(offset + 1);
+    if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) { offset += 2; continue; }
+    if (marker === 0xd9 || marker === 0xda) break; // EOI / 스캔 시작 이후엔 헤더 없음
+    const length = view.getUint16(offset + 2);
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      return {
+        height: view.getUint16(offset + 5),
+        width: view.getUint16(offset + 7),
+        isCmyk: view.getUint8(offset + 9) === 4,
+      };
+    }
+    offset += 2 + length;
+  }
+  return null;
+}
+function isCmykJpeg(buf) {
+  return parseJpegSOF(buf)?.isCmyk === true;
+}
+
+/* HEIC/HEIF(ISOBMFF) 컨테이너에서 실제 화면에 쓰이는 대표 이미지(primary item)의
+   ispe(가로/세로) 속성을 찾는다. 단순히 첫 ispe를 쓰면 애플이 같이 저장하는
+   작은 썸네일 이미지의 크기를 잘못 집을 수 있어 pitm→ipma로 정확히 연결한다. */
+function readIsoBoxes(view, start, end) {
+  const boxes = [];
+  let offset = start;
+  while (offset + 8 <= end) {
+    let size = view.getUint32(offset);
+    const type = String.fromCharCode(
+      view.getUint8(offset + 4), view.getUint8(offset + 5),
+      view.getUint8(offset + 6), view.getUint8(offset + 7)
+    );
+    let headerSize = 8;
+    if (size === 1) {
+      size = view.getUint32(offset + 8) * 4294967296 + view.getUint32(offset + 12);
+      headerSize = 16;
+    } else if (size === 0) {
+      size = end - offset;
+    }
+    if (size < headerSize) break;
+    boxes.push({ type, start: offset, headerSize, size });
+    offset += size;
+  }
+  return boxes;
+}
+function readIsoFullBoxHeader(view, box) {
+  const vf = view.getUint32(box.start + box.headerSize);
+  return { version: (vf >>> 24) & 0xff, flags: vf & 0xffffff, bodyStart: box.start + box.headerSize + 4 };
+}
+function getHeicDimensions(buf) {
+  try {
+    const view = new DataView(buf);
+    const meta = readIsoBoxes(view, 0, view.byteLength).find(b => b.type === "meta");
+    if (!meta) return null;
+    const metaChildren = readIsoBoxes(view, meta.start + meta.headerSize + 4, meta.start + meta.size);
+    const pitmBox = metaChildren.find(b => b.type === "pitm");
+    const iprpBox = metaChildren.find(b => b.type === "iprp");
+    if (!pitmBox || !iprpBox) return null;
+    const pitmHeader = readIsoFullBoxHeader(view, pitmBox);
+    const primaryItemId = pitmHeader.version === 0
+      ? view.getUint16(pitmHeader.bodyStart)
+      : view.getUint32(pitmHeader.bodyStart);
+
+    const iprpChildren = readIsoBoxes(view, iprpBox.start + iprpBox.headerSize, iprpBox.start + iprpBox.size);
+    const ipco = iprpChildren.find(b => b.type === "ipco");
+    const ipma = iprpChildren.find(b => b.type === "ipma");
+    if (!ipco || !ipma) return null;
+    const ipcoChildren = readIsoBoxes(view, ipco.start + ipco.headerSize, ipco.start + ipco.size);
+
+    const ipmaHeader = readIsoFullBoxHeader(view, ipma);
+    let p = ipmaHeader.bodyStart;
+    const entryCount = view.getUint32(p); p += 4;
+    let targetIndices = null;
+    for (let i = 0; i < entryCount; i++) {
+      const itemId = ipmaHeader.version < 1 ? view.getUint16(p) : view.getUint32(p);
+      p += ipmaHeader.version < 1 ? 2 : 4;
+      const assocCount = view.getUint8(p); p += 1;
+      const indices = [];
+      for (let j = 0; j < assocCount; j++) {
+        if (ipmaHeader.flags & 1) { indices.push(view.getUint16(p) & 0x7fff); p += 2; }
+        else { indices.push(view.getUint8(p) & 0x7f); p += 1; }
+      }
+      if (itemId === primaryItemId) targetIndices = indices;
+    }
+    if (!targetIndices) return null;
+    for (const idx of targetIndices) {
+      const propBox = ipcoChildren[idx - 1];
+      if (propBox && propBox.type === "ispe") {
+        const ispeHeader = readIsoFullBoxHeader(view, propBox);
+        return { width: view.getUint32(ispeHeader.bodyStart), height: view.getUint32(ispeHeader.bodyStart + 4) };
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function getRasterDimensions(file) {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const dims = { width: bitmap.width, height: bitmap.height };
+    bitmap.close();
+    return dims;
+  } catch {
+    return null;
+  }
+}
+function getVideoMeta(file) {
+  return new Promise(resolve => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.muted = true;
+    const url = URL.createObjectURL(file);
+    const finish = meta => { clearTimeout(timer); URL.revokeObjectURL(url); resolve(meta); };
+    const timer = setTimeout(() => finish(null), 8000);
+    video.onloadedmetadata = () => finish({ width: video.videoWidth, height: video.videoHeight, duration: video.duration });
+    video.onerror = () => finish(null);
+    video.src = url;
+  });
+}
+// 파일을 추가하는 순간 CMYK 여부와 원본 픽셀 크기를 함께 보여주기 위한 분석
+async function analyzeImageFile(file) {
+  if (isHeicFile(file)) {
+    try {
+      return { isCmyk: false, dims: getHeicDimensions(await file.arrayBuffer()) };
+    } catch {
+      return { isCmyk: false, dims: null };
+    }
+  }
+  if (/^image\/jpe?g$/i.test(file.type) || /\.jpe?g$/i.test(file.name)) {
+    try {
+      const info = parseJpegSOF(await file.arrayBuffer());
+      return { isCmyk: !!info?.isCmyk, dims: info ? { width: info.width, height: info.height } : null };
+    } catch {
+      return { isCmyk: false, dims: null };
+    }
+  }
+  return { isCmyk: false, dims: await getRasterDimensions(file) };
+}
+function rawToCanvas(raw) {
+  const canvas = document.createElement("canvas");
+  canvas.width = raw.width;
+  canvas.height = raw.height;
+  const ctx = canvas.getContext("2d");
+  const imageData = ctx.createImageData(raw.width, raw.height);
+  imageData.data.set(raw.data);
+  ctx.putImageData(imageData, 0, 0);
+  return canvas;
+}
+// 대용량 CMYK JPEG을 메인 스레드에서 동기 디코딩하면 탭이 그대로 멈춰버리므로,
+// 가능하면 워커에서 처리하고 워커를 못 쓰는 환경에서만 메인 스레드로 대체한다.
+const CMYK_WORKER_SRC = `
+import { decode } from "https://cdn.jsdelivr.net/npm/jpeg-js@0.4.4/+esm";
+self.onmessage = (e) => {
+  try {
+    const raw = decode(e.data, { useTArray: true, formatAsRGBA: true });
+    self.postMessage({ ok: true, width: raw.width, height: raw.height, data: raw.data }, [raw.data.buffer]);
+  } catch (err) {
+    self.postMessage({ ok: false, error: String((err && err.message) || err) });
+  }
+};
+`;
+function decodeCmykJpegOffThread(buf) {
+  return new Promise((resolve, reject) => {
+    let worker;
+    try {
+      const blobUrl = URL.createObjectURL(new Blob([CMYK_WORKER_SRC], { type: "text/javascript" }));
+      worker = new Worker(blobUrl, { type: "module" });
+    } catch (err) {
+      reject(err);
+      return;
+    }
+    worker.onmessage = e => {
+      worker.terminate();
+      e.data.ok ? resolve(e.data) : reject(new Error(e.data.error || "CMYK 디코딩 실패"));
+    };
+    worker.onerror = err => {
+      worker.terminate();
+      reject(err);
+    };
+    worker.postMessage(buf, [buf]);
+  });
+}
+async function decodeCmykJpegToCanvas(buf) {
+  try {
+    const raw = await decodeCmykJpegOffThread(buf.slice(0));
+    return rawToCanvas(raw);
+  } catch (err) {
+    // 워커를 쓸 수 없는 환경(구형 브라우저 등)에서는 메인 스레드에서 그대로 디코딩한다
+    return rawToCanvas(decodeJpeg(buf, { useTArray: true, formatAsRGBA: true }));
+  }
+}
+
+// 원본을 RGB 캔버스로 디코딩하는 무거운 작업(HEIC 변환, CMYK 보정)은 파일당 한 번만 하고
+// item에 캐싱해서 재사용한다 — 슬라이더를 움직일 때마다 실시간 용량 예상을 하려면 필수.
+function getSourceCanvas(item, onStatus) {
+  if (item._sourceCanvasPromise) return item._sourceCanvasPromise;
+  item._sourceCanvasPromise = (async () => {
+    const file = item.file;
+    if (/^image\/jpe?g$/i.test(file.type) || /\.jpe?g$/i.test(file.name)) {
+      const buf = await file.arrayBuffer();
+      if (isCmykJpeg(buf)) {
+        onStatus?.("CMYK 감지 · RGB로 보정 중 (최초 1회, 시간이 걸릴 수 있어요)");
+        await new Promise(requestAnimationFrame); // 위 문구가 먼저 그려지도록 한 프레임 양보
+        return decodeCmykJpegToCanvas(buf);
+      }
+    }
+    let sourceBlob = file;
+    if (isHeicFile(file)) {
+      onStatus?.("HEIC 디코딩 중 (최초 1회)...");
+      const converted = await heic2any({ blob: file, toType: "image/png" });
+      sourceBlob = Array.isArray(converted) ? converted[0] : converted;
+    }
+    const img = await loadImageBlob(sourceBlob);
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width;
+    canvas.height = img.height;
+    canvas.getContext("2d").drawImage(img, 0, 0);
+    return canvas;
+  })();
+  return item._sourceCanvasPromise;
+}
+
+async function encodeFromSourceCanvas(sourceCanvas, format, quality, maxWidth) {
+  // ICO는 규격상 가로/세로 모두 256px를 넘을 수 없어 긴 변 기준으로 자동 축소한다
+  let scale = 1;
+  if (format === "ico") {
+    const cap = maxWidth ? Math.min(maxWidth, 256) : 256;
+    scale = Math.min(1, cap / Math.max(sourceCanvas.width, sourceCanvas.height));
+  } else if (maxWidth) {
+    scale = Math.min(1, maxWidth / sourceCanvas.width);
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(sourceCanvas.width * scale));
+  canvas.height = Math.max(1, Math.round(sourceCanvas.height * scale));
+  canvas.getContext("2d").drawImage(sourceCanvas, 0, 0, canvas.width, canvas.height);
+
+  let blob;
+  switch (format) {
+    case "bmp": blob = encodeBMP(canvas); break;
+    case "tga": blob = encodeTGA(canvas); break;
+    case "tiff": blob = encodeTIFF(canvas); break;
+    case "ico": blob = await encodeICO(canvas); break;
+    case "gif": blob = encodeGIF(canvas); break;
+    case "svg": blob = await encodeSVG(canvas); break;
+    default: {
+      const mime = format === "png" ? "image/png" : format === "webp" ? "image/webp" : "image/jpeg";
+      blob = await new Promise(res => canvas.toBlob(res, mime, quality));
+    }
+  }
+  return { blob, canvas };
+}
+
+async function convertImage(item) {
+  const { file, refs } = item;
+  const format = imgFormat.value;
+  const { ext } = IMG_FORMATS[format];
+  const quality = Number(imgQuality.value) / 100;
+  const maxWidth = Number(document.getElementById("img-maxwidth").value) || null;
+
+  setProgress(refs, 20);
+  const sourceCanvas = await getSourceCanvas(item, msg => (refs.out.textContent = msg));
+  setProgress(refs, 55);
+  const { blob } = await encodeFromSourceCanvas(sourceCanvas, format, quality, maxWidth);
+  setProgress(refs, 85);
+
+  if (format !== "svg" && format !== "ico") {
+    refs.thumb.innerHTML = `<img src="${URL.createObjectURL(blob)}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">`;
+  }
+  return { blob, filename: `${baseName(file.name)}.${ext}` };
+}
+
+let imgItems = [];
+const statusImage = document.getElementById("status-image");
+const listImage = document.getElementById("list-image");
+const zipBtnImage = document.getElementById("btn-zip-image");
+
+function collectZipResults(items) {
+  return items.filter(it => it.result).map(it => it.result);
+}
+function refreshImageListUI() {
+  const zipResults = collectZipResults(imgItems);
+  zipBtnImage.disabled = zipResults.length === 0;
+  statusImage.textContent = imgItems.length
+    ? `총 ${imgItems.length}개 파일. 변환될 형식을 확인한 뒤 "변환하기"를 누르세요.`
+    : "HEIC/HEIF, WEBP, PNG, JPG, BMP, GIF, AVIF, SVG 파일만 지원합니다";
+}
+
+setupDrop("drop-image", "input-image", async files => {
+  const valid = files.filter(isImageFile);
+  const skipped = files.length - valid.length;
+  const newItems = await Promise.all(valid.map(async file => {
+    const { isCmyk, dims } = await analyzeImageFile(file);
+    const refs = renderItem(listImage, file, "🖼️", "img", IMG_FORMATS[imgFormat.value].label, isCmyk, dims);
+    const item = { file, refs, done: false, result: null };
+    refs.remove.onclick = () => {
+      imgItems = imgItems.filter(it => it !== item);
+      refs.row.remove();
+      refreshImageListUI();
+    };
+    return item;
+  }));
+  imgItems = imgItems.concat(newItems); // 기존 목록에 이어서 추가한다 (교체하지 않음)
+  const zipResults = collectZipResults(imgItems);
+  zipBtnImage.disabled = zipResults.length === 0;
+  statusImage.textContent = valid.length
+    ? `${valid.length}개 파일이 추가됐습니다 (총 ${imgItems.length}개). 변환될 형식을 확인한 뒤 "변환하기"를 누르세요.` + (skipped ? ` (지원하지 않는 파일 ${skipped}개 제외)` : "")
+    : "HEIC/HEIF, WEBP, PNG, JPG, BMP, GIF, AVIF, SVG 파일만 지원합니다";
+  scheduleImagePreview();
+});
+imgFormat.addEventListener("change", () => {
+  updateImgFormatUI();
+  const label = IMG_FORMATS[imgFormat.value].label;
+  imgItems.forEach(({ refs, done }) => { if (!done) refs.target.textContent = "→ " + label; });
+  scheduleImagePreview();
+});
+
+document.getElementById("btn-convert-image").addEventListener("click", async () => {
+  if (!imgItems.length) { statusImage.textContent = "먼저 파일을 선택하세요"; return; }
+  const pending = imgItems.filter(it => !it.done);
+  if (!pending.length) { statusImage.textContent = "새로 추가된 파일이 없습니다"; return; }
+  const convertBtn = document.getElementById("btn-convert-image");
+  convertBtn.disabled = true;
+  zipBtnImage.disabled = true;
+  statusImage.textContent = `변환 중... (0/${pending.length})`;
+
+  let done = 0;
+  for (const item of pending) {
+    item.refs.out.textContent = "변환 중...";
+    await new Promise(requestAnimationFrame); // 위 상태 표시가 화면에 그려질 시간을 준다
+    try {
+      const { blob, filename } = await convertImage(item);
+      item.result = setDone(item.refs, blob, filename, item.file.size);
+      item.done = true;
+    } catch (err) {
+      setError(item.refs, "변환 실패: " + err.message);
+    }
+    done++;
+    statusImage.textContent = `변환 중... (${done}/${pending.length})`;
+  }
+
+  convertBtn.disabled = false;
+  const zipResults = collectZipResults(imgItems);
+  zipBtnImage.disabled = zipResults.length === 0;
+  zipBtnImage.onclick = () => downloadZip(zipResults, "converted_images.zip", statusImage);
+  statusImage.textContent = `${zipResults.length}/${imgItems.length}개 완료`;
+});
+
+/* ---------- 동영상 변환 (MP4/MOV → MP4/GIF) ---------- */
+const vidFormat = document.getElementById("vid-format");
+const vidFps = document.getElementById("vid-fps");
+const vidQuality = document.getElementById("vid-quality");
+const vidColors = document.getElementById("vid-colors");
+
+vidFps.addEventListener("input", () => {
+  document.getElementById("vid-fps-val").textContent = vidFps.value === "0" ? "원본 유지" : vidFps.value + " fps";
+});
+// 목표 용량으로 계산한 비트레이트가 있어도, 화질 슬라이더를 직접 만지면 그 쪽 설정으로 되돌아간다
+let vidTargetBitrateKbps = null;
+vidQuality.addEventListener("input", () => {
+  document.getElementById("vid-quality-val").textContent = vidQuality.value + "%";
+  vidTargetBitrateKbps = null;
+});
+vidColors.addEventListener("input", () => (document.getElementById("vid-colors-val").textContent = vidColors.value));
+
+function vidTargetLabel() {
+  return vidFormat.value === "gif" ? "GIF" : "MP4";
+}
+vidFormat.addEventListener("change", () => {
+  const isGif = vidFormat.value === "gif";
+  document.getElementById("vid-quality-wrap").style.display = isGif ? "none" : "block";
+  document.getElementById("vid-colors-wrap").style.display = isGif ? "block" : "none";
+  vidItems.forEach(({ refs }) => (refs.target.textContent = "→ " + vidTargetLabel()));
+});
+
+// ffmpeg.wasm은 내부적으로 자기 자신의 워커를 CDN 절대주소로 바로 생성하려 하는데,
+// 브라우저는 이런 cross-origin 워커 생성을 막는다. 워커 소스(worker.js + 의존 모듈 2개)를
+// 직접 가져와 하나로 합쳐 같은 오리진(blob:)에서 워커를 띄우도록 우회한다.
+let ffmpegWorkerBlobURLPromise = null;
+function getFFmpegWorkerBlobURL() {
+  if (ffmpegWorkerBlobURLPromise) return ffmpegWorkerBlobURLPromise;
+  ffmpegWorkerBlobURLPromise = (async () => {
+    const base = "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm";
+    const [constSrc, errorsSrc, workerSrc] = await Promise.all(
+      [`${base}/const.js`, `${base}/errors.js`, `${base}/worker.js`].map(u => fetch(u).then(r => r.text()))
+    );
+    const combined = [
+      constSrc.replace(/export\s+/g, ""),
+      errorsSrc.replace(/export\s+/g, ""),
+      workerSrc.replace(/^import[^\n]*\n/gm, ""), // const.js/errors.js 내용을 위에서 이미 인라인했으니 import 줄만 제거
+    ].join("\n");
+    return URL.createObjectURL(new Blob([combined], { type: "text/javascript" }));
+  })();
+  return ffmpegWorkerBlobURLPromise;
+}
+
+let ffmpegInstance = null;
+async function getFFmpeg() {
+  if (ffmpegInstance) return ffmpegInstance;
+  const ffmpeg = new FFmpeg();
+  const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm";
+  await ffmpeg.load({
+    classWorkerURL: await getFFmpegWorkerBlobURL(),
+    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+  });
+  ffmpegInstance = ffmpeg;
+  return ffmpeg;
+}
+function buildScaleFilter(widthSel) {
+  return widthSel === "original" ? "scale=trunc(iw/2)*2:trunc(ih/2)*2" : `scale=${widthSel}:-2:flags=lanczos`;
+}
+async function convertVideo(file, refs, index) {
+  const ffmpeg = await getFFmpeg();
+  const outFormat = vidFormat.value;
+  const fps = Number(vidFps.value);
+  const widthSel = document.getElementById("vid-width").value;
+  const scaleFilter = buildScaleFilter(widthSel);
+  const vf = fps > 0 ? [`fps=${fps}`, scaleFilter] : [scaleFilter];
+
+  ffmpeg.on("progress", ({ progress }) => setProgress(refs, Math.min(95, Math.round(progress * 100))));
+
+  const inExt = /\.mov$/i.test(file.name) ? "mov" : "mp4";
+  const inputName = `in_${index}.${inExt}`;
+  await ffmpeg.writeFile(inputName, await fetchFile(file));
+
+  if (outFormat === "gif") {
+    const colors = vidColors.value;
+    const outputName = `out_${index}.gif`;
+    await ffmpeg.exec(["-i", inputName, "-vf", `${vf.join(",")},palettegen=max_colors=${colors}`, `palette_${index}.png`]);
+    await ffmpeg.exec([
+      "-i", inputName,
+      "-i", `palette_${index}.png`,
+      "-filter_complex", `${vf.join(",")}[x];[x][1:v]paletteuse`,
+      outputName,
+    ]);
+    const data = await ffmpeg.readFile(outputName);
+    const blob = new Blob([data.buffer], { type: "image/gif" });
+    await ffmpeg.deleteFile(inputName);
+    await ffmpeg.deleteFile(`palette_${index}.png`);
+    await ffmpeg.deleteFile(outputName);
+    return { blob, filename: `${baseName(file.name)}.gif` };
+  } else {
+    const outputName = `out_${index}.mp4`;
+    if (vidTargetBitrateKbps) {
+      // 목표 용량 계산값이 있으면 화질(CRF) 대신 비트레이트를 직접 지정해 크기를 맞춘다
+      const vb = vidTargetBitrateKbps;
+      await ffmpeg.exec([
+        "-i", inputName,
+        "-vf", vf.join(","),
+        "-c:v", "libx264", "-preset", "veryfast",
+        "-b:v", `${vb}k`, "-maxrate", `${Math.round(vb * 1.5)}k`, "-bufsize", `${vb * 2}k`,
+        "-c:a", "aac", "-b:a", "128k",
+        "-movflags", "+faststart",
+        outputName,
+      ]);
+      const data = await ffmpeg.readFile(outputName);
+      const blob = new Blob([data.buffer], { type: "video/mp4" });
+      await ffmpeg.deleteFile(inputName);
+      await ffmpeg.deleteFile(outputName);
+      return { blob, filename: `${baseName(file.name)}.mp4` };
+    }
+    const quality = Number(vidQuality.value);
+    const crf = Math.round(35 - (quality / 100) * 20); // 0%→35(저용량), 100%→15(고화질)
+    await ffmpeg.exec([
+      "-i", inputName,
+      "-vf", vf.join(","),
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", String(crf),
+      "-c:a", "aac", "-b:a", "128k",
+      "-movflags", "+faststart",
+      outputName,
+    ]);
+    const data = await ffmpeg.readFile(outputName);
+    const blob = new Blob([data.buffer], { type: "video/mp4" });
+    await ffmpeg.deleteFile(inputName);
+    await ffmpeg.deleteFile(outputName);
+    return { blob, filename: `${baseName(file.name)}.mp4` };
+  }
+}
+
+// 목표 용량: MP4는 길이(초)를 알면 비트레이트를 역산해 정확히 맞출 수 있다.
+// GIF는 비트레이트 레버가 없어서 한 번 실제로 인코딩해보고 그 결과 비율만큼
+// 가로폭을 보정하는 근사치 방식을 쓴다(여러 번 시험 인코딩하면 너무 느려짐).
+const vidTargetSizeInput = document.getElementById("vid-target-size");
+const vidTargetUnit = document.getElementById("vid-target-unit");
+vidTargetSizeInput.addEventListener("change", applyVideoTargetSize);
+vidTargetUnit.addEventListener("change", applyVideoTargetSize);
+
+async function applyVideoTargetSize() {
+  const amount = Number(vidTargetSizeInput.value);
+  if (!amount || amount <= 0) return;
+  const pending = vidItems.filter(it => !it.done);
+  if (!pending.length) { statusVideo.textContent = "목표 용량을 적용할 파일이 없습니다"; return; }
+
+  const unit = vidTargetUnit.value;
+  const targetBytes = amount * (unit === "MB" ? 1024 * 1024 : 1024);
+  const format = vidFormat.value;
+
+  for (const it of pending) {
+    if (it.duration == null) {
+      const meta = await getVideoMeta(it.file);
+      it.duration = meta?.duration || null;
+      it.width = it.width || meta?.width || null;
+    }
+  }
+  const withDuration = pending.filter(it => it.duration);
+  if (!withDuration.length) { statusVideo.textContent = "영상 길이를 확인할 수 없어 목표 용량을 적용하지 못했습니다"; return; }
+
+  if (format === "mp4") {
+    // 같은 비트레이트를 모든 파일에 적용하므로, 가장 긴 영상이 목표를 넘지 않도록 그 영상 기준으로 계산한다
+    const longest = withDuration.reduce((a, b) => (b.duration > a.duration ? b : a));
+    const audioKbps = 128;
+    const totalKbps = (targetBytes * 8) / 1000 / longest.duration;
+    const videoKbps = Math.max(80, Math.round(totalKbps - audioKbps));
+    vidTargetBitrateKbps = videoKbps;
+    statusVideo.textContent = `목표 ${amount}${unit}에 맞춰 비트레이트를 약 ${videoKbps}kbps로 설정했습니다 (가장 긴 영상 ${longest.duration.toFixed(1)}초 기준, 오디오 128kbps 제외)`;
+    vidItems.forEach(({ refs, done }) => { if (!done) refs.target.textContent = "→ MP4 (목표 " + amount + unit + ")"; });
+    return;
+  }
+
+  vidTargetBitrateKbps = null;
+  let worst = withDuration[0];
+  for (const it of withDuration) if (it.file.size > worst.file.size) worst = it;
+  statusVideo.textContent = "GIF 목표 용량에 맞춰 시험 인코딩 중... (근사치, 시간이 걸릴 수 있어요)";
+  worst.refs.out.textContent = "목표 용량 측정 중...";
+  try {
+    const trial = await convertVideo(worst.file, worst.refs, 9990);
+    worst.refs.bar.style.width = "0%";
+    if (trial.blob.size <= targetBytes) {
+      worst.refs.out.textContent = "대기 중";
+      statusVideo.textContent = `이미 목표 용량 이하입니다 (시험 결과 ${fmtSize(trial.blob.size)})`;
+      return;
+    }
+    const ratio = Math.sqrt(targetBytes / trial.blob.size);
+    const widthSel = document.getElementById("vid-width");
+    const presets = [1280, 720, 480, 360, 240, 160];
+    const baseWidth = widthSel.value === "original" ? (worst.width || 640) : Number(widthSel.value);
+    const targetWidth = Math.max(80, Math.round(baseWidth * ratio));
+    const nearest = presets.find(p => p <= targetWidth) || presets[presets.length - 1];
+    widthSel.value = String(nearest);
+    worst.refs.out.textContent = "대기 중";
+    statusVideo.textContent = `목표 ${amount}${unit}에 맞춰 가로폭을 ${nearest}px로 조정했습니다 (근사치, 시험 결과 ${fmtSize(trial.blob.size)})`;
+  } catch (err) {
+    worst.refs.out.textContent = "대기 중";
+    statusVideo.textContent = "목표 용량 계산 실패: " + err.message;
+  }
+}
+
+let vidItems = [];
+const statusVideo = document.getElementById("status-video");
+const listVideo = document.getElementById("list-video");
+const zipBtnVideo = document.getElementById("btn-zip-video");
+
+function refreshVideoListUI() {
+  const zipResults = collectZipResults(vidItems);
+  zipBtnVideo.disabled = zipResults.length === 0;
+  statusVideo.textContent = vidItems.length
+    ? `총 ${vidItems.length}개 파일. 변환될 형식을 확인한 뒤 "변환하기"를 누르세요.`
+    : "MP4, MOV 파일만 지원합니다";
+}
+
+setupDrop("drop-video", "input-video", async files => {
+  const valid = files.filter(isVideoFile);
+  const skipped = files.length - valid.length;
+  const newItems = await Promise.all(valid.map(async file => {
+    const meta = await getVideoMeta(file);
+    const dims = meta ? { width: meta.width, height: meta.height } : null;
+    const refs = renderItem(listVideo, file, "🎬", "vid", vidTargetLabel(), false, dims);
+    const item = { file, refs, done: false, result: null, duration: meta?.duration || null, width: meta?.width || null };
+    refs.remove.onclick = () => {
+      vidItems = vidItems.filter(it => it !== item);
+      refs.row.remove();
+      refreshVideoListUI();
+    };
+    return item;
+  }));
+  vidItems = vidItems.concat(newItems); // 기존 목록에 이어서 추가한다 (교체하지 않음)
+  zipBtnVideo.disabled = collectZipResults(vidItems).length === 0;
+  statusVideo.textContent = valid.length
+    ? `${valid.length}개 파일이 추가됐습니다 (총 ${vidItems.length}개). 변환될 형식을 확인한 뒤 "변환하기"를 누르세요.` + (skipped ? ` (지원하지 않는 파일 ${skipped}개 제외)` : "")
+    : "MP4, MOV 파일만 지원합니다";
+});
+
+document.getElementById("btn-convert-video").addEventListener("click", async () => {
+  if (!vidItems.length) { statusVideo.textContent = "먼저 파일을 선택하세요"; return; }
+  const pending = vidItems.filter(it => !it.done);
+  if (!pending.length) { statusVideo.textContent = "새로 추가된 파일이 없습니다"; return; }
+  const convertBtn = document.getElementById("btn-convert-video");
+  convertBtn.disabled = true;
+  zipBtnVideo.disabled = true;
+  statusVideo.textContent = "변환 엔진 로딩 중... (최초 1회, 몇 초 소요)";
+
+  for (let i = 0; i < pending.length; i++) {
+    const item = pending[i];
+    try {
+      const { blob, filename } = await convertVideo(item.file, item.refs, i);
+      item.result = setDone(item.refs, blob, filename, item.file.size);
+      item.done = true;
+    } catch (err) {
+      setError(item.refs, "변환 실패: " + err.message);
+    }
+  }
+
+  convertBtn.disabled = false;
+  const zipResults = collectZipResults(vidItems);
+  zipBtnVideo.disabled = zipResults.length === 0;
+  zipBtnVideo.onclick = () => downloadZip(zipResults, "converted_gifs.zip", statusVideo);
+  statusVideo.textContent = `${zipResults.length}/${vidItems.length}개 완료`;
+});
+</script>
+</body>
+</html>
